@@ -1,4 +1,4 @@
-﻿// =================================================================================================
+// =================================================================================================
 // ADOBE SYSTEMS INCORPORATED
 // Copyright 2006 Adobe Systems Incorporated
 // All Rights Reserved
@@ -50,7 +50,7 @@ namespace XmpCore.Impl
         /// <returns>Returns a new buffer containing valid UTF-8</returns>
         public static ByteBuffer Convert(ByteBuffer buffer)
         {
-            if (!ReferenceEquals(buffer.GetEncoding(), Encoding.UTF8))
+            if (!(buffer.GetEncoding() is UTF8Encoding))
                 return buffer;
 
             // the buffer containing one UTF-8 char (up to 8 bytes)

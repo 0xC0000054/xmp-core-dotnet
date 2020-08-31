@@ -140,7 +140,7 @@ namespace XmpCore.Impl
                 if (Length < 2)
                 {
                     // only one byte length must be UTF-8
-                    _encoding = Encoding.UTF8;
+                    _encoding = XmpEncoding.UTF8;
                 }
                 else if (_buffer[0] == 0)
                 {
@@ -150,13 +150,14 @@ namespace XmpCore.Impl
                     //   00 00 FE FF - Big endian UTF 32
                     if (Length < 4 || _buffer[1] != 0)
                     {
-                        _encoding = Encoding.BigEndianUnicode;
+                        _encoding = XmpEncoding.BigEndianUTF16;
                     }
                     else
                     {
-                        if ((_buffer[2] & 0xFF) == 0xFE && (_buffer[3] & 0xFF) == 0xFF)
-                            throw new NotSupportedException("UTF-32BE is not a supported encoding.");
-                        throw new NotSupportedException("UTF-32 is not a supported encoding.");
+                        if (_buffer[2] == 0 && _buffer[3] == 0 || (_buffer[2] & 0xFF) == 0xFE && (_buffer[3] & 0xFF) == 0xFF)
+                            _encoding = XmpEncoding.BigEndianUTF32;
+                        else
+                            throw new NotSupportedException("The buffer does not use a supported encoding.");
                     }
                 }
                 else if ((_buffer[0] & 0xFF) < 0x80)
@@ -165,11 +166,11 @@ namespace XmpCore.Impl
                     //   nn mm -- -- - UTF-8, includes EF BB BF case
                     //   nn 00 -- -- - Little endian UTF-16
                     if (_buffer[1] != 0)
-                        _encoding = Encoding.UTF8;
+                        _encoding = XmpEncoding.UTF8;
                     else if (Length < 4 || _buffer[2] != 0)
-                        _encoding = Encoding.Unicode;
+                        _encoding = XmpEncoding.LittleEndianUTF16;
                     else
-                        throw new NotSupportedException("UTF-32LE is not a supported encoding.");
+                        _encoding = XmpEncoding.LittleEndianUTF32;
                 }
                 else
                 {
@@ -181,18 +182,19 @@ namespace XmpCore.Impl
                     switch (_buffer[0] & 0xFF)
                     {
                         case 0xEF:
-                            _encoding = Encoding.UTF8;
+                            _encoding = XmpEncoding.UTF8;
                             break;
                         case 0xFE:
-                            _encoding = Encoding.BigEndianUnicode;
+                            _encoding = XmpEncoding.BigEndianUTF16;
                             break;
                         default:
                             if (Length < 4 || _buffer[2] != 0)
-                                // in fact BE
-                                throw new NotSupportedException("UTF-16 is not a supported encoding.");
+                                // in fact LE
+                                _encoding = XmpEncoding.LittleEndianUTF16;
                             else
                                 // in fact LE
-                                throw new NotSupportedException("UTF-32 is not a supported encoding.");
+                                _encoding = XmpEncoding.LittleEndianUTF32;
+                            break;
                     }
                 }
             }
@@ -214,6 +216,19 @@ namespace XmpCore.Impl
                 _buffer = new byte[oldBuf.Length*2];
                 Array.Copy(oldBuf, 0, _buffer, 0, oldBuf.Length);
             }
+        }
+
+        private static class XmpEncoding
+        {
+            public static Encoding BigEndianUTF16 { get; } = new UnicodeEncoding(bigEndian: true, byteOrderMark: true, throwOnInvalidBytes: true);
+
+            public static Encoding BigEndianUTF32 { get; } = new UTF32Encoding(bigEndian: true, byteOrderMark: true, throwOnInvalidCharacters: true);
+
+            public static Encoding LittleEndianUTF16 { get; } = new UnicodeEncoding(bigEndian: false, byteOrderMark: true, throwOnInvalidBytes: true);
+
+            public static Encoding LittleEndianUTF32 { get; } = new UTF32Encoding(bigEndian: false, byteOrderMark: true, throwOnInvalidCharacters: true);
+
+            public static Encoding UTF8 { get; } = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true, throwOnInvalidBytes: true);
         }
     }
 }
